@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Painel CoreCad</title>
+<style>
+  :root{
+    --deep:#0b2436; --deep2:#123049; --panel:#16354f; --line:#2a4d68;
+    --ink:#eaf1f6; --ink-dim:#9fb7c9;
+    --brass:#c9a24b; --ok:#4f9d7c; --warn:#d9a441; --bad:#c0574a;
+    --exec:#4f8fd9; --vig:#b46fd6; --sens:#e2734f;
+    --mono:"IBM Plex Mono","SFMono-Regular",Menlo,monospace;
+    --sans:"IBM Plex Sans","Segoe UI",sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--deep);color:var(--ink);font-family:var(--sans);min-height:100vh;}
+  header{padding:20px 40px 16px;border-bottom:1px solid var(--line);
+    display:flex;justify-content:space-between;align-items:flex-end;
+    background:linear-gradient(180deg,var(--deep2),var(--deep));}
+  .brand .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.18em;color:var(--brass);text-transform:uppercase;}
+  .brand h1{margin:4px 0 0;font-size:22px;font-weight:600;letter-spacing:-0.01em;}
+  .brand p{margin:2px 0 0;color:var(--ink-dim);font-size:13px;}
+  #liveSummary{font-size:12px;color:var(--ink-dim);text-align:right;line-height:1.6;}
+  #liveSummary b{color:var(--brass);}
+
+  nav{display:flex; gap:2px; padding:0 40px; border-bottom:1px solid var(--line); background:var(--deep2);}
+  nav button{background:none;border:none;color:var(--ink-dim);font-family:var(--sans);font-size:13px;
+    padding:14px 18px;cursor:pointer;border-bottom:2px solid transparent;letter-spacing:.02em;}
+  nav button.active{color:var(--ink);border-bottom-color:var(--brass);}
+  nav button:hover{color:var(--ink);}
+  nav button.ref{margin-left:auto;color:var(--ink-dim);font-size:12px;}
+
+  main{padding:24px 40px 60px;}
+  .view{display:none;} .view.active{display:block;}
+
+  h2.section-h{font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim);
+    font-weight:600;margin:0 0 14px;}
+
+  .info-box{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:18px 20px;}
+  .info-box h4{margin:0 0 12px;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-dim);}
+  .sla-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;}
+  .sla-row:last-child{border-bottom:none;}
+  .sla-row .val{font-family:var(--mono);color:var(--brass);}
+
+  .task-form{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;margin-bottom:10px;}
+  .task-form input, .task-form select, .task-form textarea{
+    background:var(--deep2);color:var(--ink);border:1px solid var(--line);border-radius:6px;
+    padding:9px 10px;font-size:12.5px;font-family:var(--sans);width:100%;}
+  .task-form textarea{grid-column:1 / -1;min-height:50px;resize:vertical;}
+  .task-form button{grid-column:1 / -1;background:var(--brass);color:var(--deep);border:none;border-radius:6px;
+    padding:10px;font-size:13px;font-weight:600;cursor:pointer;}
+
+  .filter-row{display:flex;gap:8px;align-items:center;margin:18px 0 14px;flex-wrap:wrap;}
+  .filter-row span.label{font-size:11px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.06em;margin-right:2px;}
+  .filter-btn{font-family:var(--mono);font-size:11px;padding:6px 12px;border-radius:14px;cursor:pointer;
+    background:var(--panel);border:1px solid var(--line);color:var(--ink-dim);}
+  .filter-btn.on{border-color:var(--brass);color:var(--brass);background:rgba(201,162,75,.1);}
+  select.plain{background:var(--deep2);color:var(--ink);border:1px solid var(--line);border-radius:6px;
+    padding:6px 10px;font-size:12px;}
+
+  .task-card{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--ink-dim);
+    border-radius:6px;padding:14px 16px;margin-bottom:10px;}
+  .task-card.status-ativo{border-left-color:var(--ok);}
+  .task-card.status-pausado{border-left-color:var(--warn);}
+  .task-card.status-concluido{border-left-color:var(--ink-dim); opacity:.65;}
+  .task-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+  .task-title{font-size:14px;font-weight:600;margin:0 0 4px;}
+  .task-meta{font-size:11px;color:var(--ink-dim);display:flex;gap:10px;flex-wrap:wrap;}
+  .task-badge{font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:10px;border:1px solid var(--line);color:var(--ink-dim);}
+  .task-notes{font-size:12px;color:var(--ink-dim);margin-top:8px;padding-top:8px;border-top:1px solid var(--line);}
+  .task-actions{display:flex;gap:6px;align-items:center;}
+  .task-actions select{background:var(--deep2);color:var(--ink);border:1px solid var(--line);border-radius:5px;
+    padding:5px 8px;font-size:11px;}
+
+  .fixed-block{margin-top:26px;}
+  .fixed-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;}
+  .fixed-item{background:var(--deep2);border:1px solid var(--line);border-radius:6px;padding:12px 14px;font-size:12px;}
+  .fixed-item .id{font-family:var(--mono);font-size:10px;color:var(--ink-dim);}
+  .fixed-item .n{margin-top:3px;color:var(--ink);}
+
+  .branch-focus{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;}
+  .branch-card{background:var(--panel);border:1px solid var(--brass);border-radius:8px;padding:18px 20px;}
+  .branch-card h3{margin:0 0 8px;font-size:16px;}
+  .branch-card p{font-size:12.5px;color:var(--ink-dim);line-height:1.6;margin:0 0 6px;}
+  .others-toggle{background:none;border:1px solid var(--line);color:var(--ink-dim);border-radius:6px;
+    padding:8px 14px;font-size:12px;cursor:pointer;margin-bottom:10px;}
+  .others-list{display:none;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;}
+  .others-list.show{display:grid;}
+  .other-card{background:var(--deep2);border:1px solid var(--line);border-radius:6px;padding:10px 12px;font-size:12px;color:var(--ink-dim);}
+
+  .upload-zone{border:1.5px dashed var(--line);border-radius:6px;padding:26px 20px;text-align:center;
+    cursor:pointer;transition:.15s border-color,.15s background;}
+  .upload-zone:hover, .upload-zone.drag{border-color:var(--brass);background:rgba(201,162,75,.05);}
+  .upload-zone p{margin:8px 0 0;font-size:12.5px;color:var(--ink-dim);}
+  .upload-zone .icon{font-size:24px;color:var(--brass);}
+  .upload-zone input{display:none;}
+  .log-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
+  .log-metric{background:var(--deep2);border:1px solid var(--line);border-radius:6px;padding:12px 14px;}
+  .log-metric .v{font-family:var(--mono);font-size:20px;color:var(--brass);}
+  .log-metric .l{font-size:10.5px;color:var(--ink-dim);text-transform:uppercase;margin-top:4px;}
+  .sensitive-tag{display:inline-block;font-family:var(--mono);font-size:10px;background:rgba(226,115,79,.15);
+    color:var(--sens);border:1px solid var(--sens);padding:2px 7px;border-radius:10px;margin:2px 4px 2px 0;}
+  .snapshot-item{background:var(--deep2);border:1px solid var(--line);border-radius:6px;padding:10px 14px;
+    font-size:12.5px;margin-bottom:8px;}
+  .compare-btn{background:var(--panel);border:1px solid var(--brass);color:var(--brass);border-radius:6px;
+    padding:8px 16px;font-size:12px;cursor:pointer;margin-top:10px;}
+  .compare-result{margin-top:14px;padding:14px 16px;background:var(--deep2);border:1px solid var(--line);border-radius:6px;}
+
+  .note{background:rgba(217,164,65,.08);border:1px solid var(--warn);border-radius:6px;
+    padding:12px 16px;font-size:12px;color:#f0d9a8;margin-top:16px;}
+
+  table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden;}
+  th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--brass);
+    padding:10px 12px;border-bottom:1px solid var(--line);background:var(--deep2);}
+  td{padding:10px 12px;font-size:12.5px;border-bottom:1px solid var(--line);color:var(--ink-dim);}
+  tr:last-child td{border-bottom:none;}
+  td.proc{color:var(--ink);font-weight:500;}
+  .ref-sub{margin-bottom:28px;}
+
+  footer{padding:18px 40px;text-align:center;font-size:11px;color:var(--ink-dim);font-family:var(--mono);border-top:1px solid var(--line);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="eyebrow">CoreCad - Craft Multimodal</span>
+    <h1>Painel de Atividades e Governança de Cadastro</h1>
+    <p>Foco operacional - o que está ativo agora, quem faz, e onde estão os desvios</p>
+  </div>
+  <div id="liveSummary">carregando...</div>
+</header>
+
+<nav>
+  <button class="active" data-view="atividades">Atividades</button>
+  <button data-view="desvios">Desvios &amp; Duplicidades</button>
+  <button data-view="filiais">Filiais</button>
+  <button class="ref" data-view="referencia">Referência &amp; Políticas</button>
+</nav>
+
+<main>
+
+  <section id="atividades" class="view active">
+    <h2 class="section-h">Nova atividade</h2>
+    <div class="info-box" style="margin-bottom:24px;">
+      <div class="task-form">
+        <input type="text" id="tTitulo" placeholder="Título (ex: Saneamento Agentes - lote agosto)">
+        <select id="tTipo">
+          <option>Execução</option><option>Vigilância</option><option>Saneamento</option><option>Pontual</option>
+        </select>
+        <select id="tFilial">
+          <option>Brasil</option><option>Peru</option><option>México</option><option>Agentes Globais</option>
+          <option>Argentina</option><option>Bolívia</option><option>Colômbia</option><option>Chile</option>
+          <option>Equador</option><option>Paraguai</option><option>EUA</option><option>Uruguai (Lady Marina)</option>
+          <option>Multi-filial</option>
+        </select>
+        <select id="tResp">
+          <option>Cauê Ribeiro</option><option>Matheus Trindade Lopes</option><option>Giovana Costa</option>
+          <option>Isabela Novaes</option><option>Walmir Ramos</option><option>Outro / a definir</option>
+        </select>
+        <textarea id="tNotas" placeholder="Notas, referência de relatório, observações..."></textarea>
+        <button onclick="createTask()">+ Adicionar atividade</button>
+      </div>
+    </div>
+
+    <div class="filter-row">
+      <span class="label">Status:</span>
+      <button class="filter-btn on" data-fstatus="Ativo" onclick="toggleStatusFilter(this)">Ativo</button>
+      <button class="filter-btn on" data-fstatus="Pausado" onclick="toggleStatusFilter(this)">Pausado</button>
+      <button class="filter-btn" data-fstatus="Concluído" onclick="toggleStatusFilter(this)">Concluído</button>
+      <span class="label" style="margin-left:16px;">Filial:</span>
+      <select class="plain" id="taskBranchFilter" onchange="renderTasks()">
+        <option value="">Todas</option>
+      </select>
+    </div>
+
+    <div id="taskList"><p style="font-size:12px;color:var(--ink-dim);">Carregando atividades...</p></div>
+
+    <div class="fixed-block">
+      <h2 class="section-h">Fluxos formais fixos (referência rápida, não editável aqui)</h2>
+      <div class="fixed-list">
+        <div class="fixed-item"><div class="id">POP-0011 - BR</div><div class="n">Cadastro de Fornecedor</div></div>
+        <div class="fixed-item"><div class="id">POP-0020 - BR</div><div class="n">Cadastro de Cliente</div></div>
+        <div class="fixed-item"><div class="id">POP-0021 - Global</div><div class="n">Cadastro de Agente</div></div>
+        <div class="fixed-item"><div class="id">POP-0022 - BR</div><div class="n">Cadastro Shipper/Consignee</div></div>
+        <div class="fixed-item"><div class="id">POP-0044/45/46 - PE</div><div class="n">Proveedor / Shipper-Cnee / Cliente</div></div>
+        <div class="fixed-item"><div class="id">Manual 05/26 - MX</div><div class="n">Alta Clientes / Proveedores</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="desvios" class="view">
+    <div class="info-box" style="margin-bottom:20px;">
+      <div class="upload-zone" id="dropZone">
+        <div class="icon">&#8657;</div>
+        <p><b>Solte o relatório de cadastros aqui</b> ou clique para selecionar (.csv)</p>
+        <p style="font-size:11px;">Reconhece: Org.Code, Org.Name, Added, User, Home Branch Name - relatório de criação/movimentação do CargoWise</p>
+        <input type="file" id="fileInput" accept=".csv">
+      </div>
+    </div>
+
+    <div id="logResult" style="display:none;">
+      <div class="filter-row" id="filterRow" style="display:none;">
+        <span class="label">Filtrar por filial/país:</span>
+        <select id="branchFilter" class="plain"></select>
+      </div>
+
+      <div class="log-metrics">
+        <div class="log-metric"><div class="v" id="mTotal">-</div><div class="l">Cadastros no período</div></div>
+        <div class="log-metric"><div class="v" id="mUsers">-</div><div class="l">Usuários envolvidos</div></div>
+        <div class="log-metric"><div class="v" id="mReincid">-</div><div class="l">Nomes com Org.Code duplicado</div></div>
+        <div class="log-metric"><div class="v" id="mAuto">-</div><div class="l">% via automação Cross&gt;CW</div></div>
+      </div>
+
+      <div class="info-box" style="margin-bottom:14px;">
+        <h4>Cadastros com mais de um Org.Code (duplicidade real)</h4>
+        <div id="topRecords"></div>
+      </div>
+
+      <div class="info-box" style="margin-bottom:14px;">
+        <h4>Campos sensíveis alterados</h4>
+        <div id="sensitiveFields"></div>
+      </div>
+
+      <div class="two-col-desvios" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="info-box"><h4>Top usuários (volume de cadastro)</h4><div id="topUsers"></div></div>
+        <div class="info-box"><h4>Volume por filial/país</h4><div id="branchBreakdown"></div></div>
+      </div>
+
+      <button onclick="saveSnapshot()" style="margin-top:16px;background:var(--brass);color:var(--deep);border:none;
+        border-radius:6px;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;">Salvar como snapshot do período</button>
+    </div>
+
+    <h2 class="section-h" style="margin-top:28px;">Histórico de snapshots (comparação entre meses)</h2>
+    <div class="info-box">
+      <div id="snapshotList"><p style="font-size:12px;color:var(--ink-dim);">Carregando histórico...</p></div>
+      <button class="compare-btn" id="compareBtn" style="display:none;" onclick="compareSnapshots()">Comparar selecionados</button>
+      <div id="compareResult"></div>
+    </div>
+  </section>
+
+  <section id="filiais" class="view">
+    <h2 class="section-h">Em foco agora</h2>
+    <div class="branch-focus">
+      <div class="branch-card">
+        <h3>Brasil</h3>
+        <p>Cadastros devem passar estritamente pela automação Cross (Receita Federal + Serasa -> CargoWise) ou pela equipe CoreCad. CoreCad captura via relatório e libera (configuração básica).</p>
+        <p><b>Time CoreCad:</b> Cauê Ribeiro, Matheus Trindade Lopes, Giovana Costa, Isabela Novaes, Walmir Ramos.</p>
+        <p><b>Atuação:</b> Execução + Vigilância</p>
+      </div>
+      <div class="branch-card">
+        <h3>Peru</h3>
+        <p>Centralização de monitoramento iniciada agora. CoreCad passa a monitorar desvios de cadastro nesta filial.</p>
+        <p><b>Atuação:</b> Vigilância (recém-iniciada)</p>
+      </div>
+      <div class="branch-card">
+        <h3>México</h3>
+        <p>Cadastros feitos conforme política há alguns meses, em modelo híbrido com Atendimento/BPO. Qualquer desvio deve ser identificado.</p>
+        <p><b>Atuação:</b> Execução (híbrida) + Vigilância</p>
+      </div>
+    </div>
+    <div class="info-box" style="margin-bottom:20px;">
+      <p style="font-size:12.5px;color:var(--ink-dim);margin:0;">Cadastro de Agentes Internacionais foi centralizado no CoreCad na semana anterior a este registro - cobre todas as filiais globalmente, não só Brasil.</p>
+    </div>
+
+    <button class="others-toggle" onclick="document.getElementById('othersList').classList.toggle('show')">Mostrar outras filiais &#9662;</button>
+    <div class="others-list" id="othersList">
+      <div class="other-card">Argentina (BUE)</div>
+      <div class="other-card">Bolívia (BOL)</div>
+      <div class="other-card">Colômbia (BOG)</div>
+      <div class="other-card">Chile (SCL)</div>
+      <div class="other-card">Equador (ECU)</div>
+      <div class="other-card">Paraguai (PGY)</div>
+      <div class="other-card">EUA (USA)</div>
+      <div class="other-card">Uruguai - Lady Marina (LAM) - filial financeira, faturamento Abroad</div>
+    </div>
+  </section>
+
+  <section id="referencia" class="view">
+    <div class="note" style="margin-top:0;">Esta aba é material de consulta - não é o foco operacional do painel. Para o dia a dia, use a aba Atividades.</div>
+
+    <div class="ref-sub">
+      <h2 class="section-h" style="margin-top:20px;">RACI consolidado</h2>
+      <table>
+        <thead><tr><th>Processo</th><th>Responsável</th><th>Aprovador</th><th>Consultado</th><th>Informado</th></tr></thead>
+        <tbody>
+          <tr><td class="proc">POP-0011 - Fornecedor (BR)</td><td>Multiplicador CoreCad</td><td>Gerente Financeiro</td><td>Pricing</td><td>-</td></tr>
+          <tr><td class="proc">POP-0020 - Cliente (BR)</td><td>Multiplicador CoreCad</td><td>Financeiro</td><td>Comercial</td><td>Comercial</td></tr>
+          <tr><td class="proc">POP-0021 - Agente (Global)</td><td>Multiplicador CoreCad</td><td>Procurement</td><td>Financeiro</td><td>Comercial</td></tr>
+          <tr><td class="proc">POP-0022 - Shipper/Cnee (BR)</td><td>Multiplicador CoreCad</td><td>Financeiro</td><td>Solicitante</td><td>Solicitante</td></tr>
+          <tr><td class="proc">POP-0044 - Proveedor (PE)</td><td>Multiplicador CoreCad</td><td>Gerente Financiero</td><td>Pricing</td><td>-</td></tr>
+          <tr><td class="proc">POP-0045 - Shipper/Cnee (PE)</td><td>Multiplicador CoreCad</td><td>Financiero</td><td>Solicitante</td><td>Solicitante</td></tr>
+          <tr><td class="proc">POP-0046 - Cliente (PE)</td><td>Multiplicador CoreCad</td><td>Financiero/G.Comercial</td><td>Financiero/G.Comercial</td><td>Comercial</td></tr>
+          <tr><td class="proc">Alta Clientes (MX)</td><td>Atendimento/BPO</td><td>CoreCad</td><td>Lea Ferreira</td><td>Craft México</td></tr>
+          <tr><td class="proc">Alta Proveedores (MX)</td><td>CoreCad</td><td>Craft México</td><td>Lea Ferreira</td><td>Craft México</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="ref-sub">
+      <h2 class="section-h">Matriz de SLA por criticidade - CoreCad App (Nota Técnica, em discussão)</h2>
+      <div class="info-box">
+        <div class="sla-row"><span>Normal</span><span class="val">8h úteis</span></div>
+        <div class="sla-row"><span>Alta</span><span class="val">4h úteis</span></div>
+        <div class="sla-row"><span>Crítica</span><span class="val">2h úteis</span></div>
+        <div class="sla-row"><span>México/Forvis Mazars</span><span class="val">48h úteis</span></div>
+      </div>
+    </div>
+
+    <div class="ref-sub">
+      <h2 class="section-h">Políticas de Governança</h2>
+      <div class="info-box">
+        <p style="font-size:12.5px;color:var(--ink-dim);">Política de Qualidade de Dados Cadastrais v1.0 - rascunho em aprovação com Wagner Fornaro (identificadores por país, matriz de campos obrigatórios, fluxo, SLAs, papéis e KPIs).</p>
+        <p style="font-size:12.5px;color:var(--ink-dim);">Nota Técnica de SLA e proposta de infraestrutura (App + Shared Mailbox) para o volume de e-mails do CoreCad.</p>
+        <p style="font-size:11.5px;color:var(--ink-dim);font-style:italic;">Documentos completos não estão embutidos aqui - esta seção é um índice de referência. Cole links ou anexe os PDFs/DOCX conforme forem aprovados.</p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>PAINEL CORECAD - ATIVIDADES DINÂMICAS VIA GOOGLE SHEETS - DESVIOS CALCULADOS A PARTIR DE RELATÓRIOS CARGOWISE</footer>
+
+<script>
+  const SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbyPQcU2aBIgLmK_FwGcRLRbsXRP043FBjIJ6A3bs2X9Rm4S9suHqh4Tw3xtNlGlKvwW3w/exec';
+  function sheetsConfigured(){ return !SHEET_API_URL.includes('COLE_AQUI'); }
+
+  function showView(id){
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+    document.querySelector('nav button[data-view="'+id+'"]').classList.add('active');
+  }
+  document.querySelectorAll('nav button').forEach(function(b){
+    b.addEventListener('click', function(){ showView(b.dataset.view); });
+  });
+
+  var allTasks = [];
+  var statusFilters = new Set(['Ativo','Pausado']);
+
+  function toggleStatusFilter(btn){
+    var s = btn.dataset.fstatus;
+    if(statusFilters.has(s)){ statusFilters.delete(s); btn.classList.remove('on'); }
+    else { statusFilters.add(s); btn.classList.add('on'); }
+    renderTasks();
+  }
+
+  function loadTasks(){
+    if(!sheetsConfigured()){
+      document.getElementById('taskList').innerHTML = '<p style="font-size:12px;color:var(--ink-dim);">Conexão com a planilha não configurada.</p>';
+      return;
+    }
+    fetch(SHEET_API_URL + '?resource=tasks').then(function(res){ return res.json(); }).then(function(data){
+      allTasks = data;
+      updateBranchFilterOptions();
+      renderTasks();
+      updateLiveSummary();
+    }).catch(function(err){
+      document.getElementById('taskList').innerHTML = '<p style="font-size:12px;color:var(--ink-dim);">Não foi possível carregar as atividades agora. Recarregue a página.</p>';
+    });
+  }
+
+  function updateBranchFilterOptions(){
+    var sel = document.getElementById('taskBranchFilter');
+    var current = sel.value;
+    var branches = Array.from(new Set(allTasks.map(function(t){ return t.filial; }).filter(Boolean))).sort();
+    sel.innerHTML = '<option value="">Todas</option>' + branches.map(function(b){ return '<option value="'+b+'">'+b+'</option>'; }).join('');
+    sel.value = current;
+  }
+
+  function renderTasks(){
+    var branchVal = document.getElementById('taskBranchFilter').value;
+    var filtered = allTasks.filter(function(t){ return statusFilters.has(t.status) && (!branchVal || t.filial===branchVal); });
+    var list = document.getElementById('taskList');
+    if(!filtered.length){
+      list.innerHTML = '<p style="font-size:12px;color:var(--ink-dim);">Nenhuma atividade encontrada com esses filtros. Adicione uma acima, ou ajuste os filtros de status/filial.</p>';
+      return;
+    }
+    var sorted = filtered.slice().sort(function(a,b){ return new Date(b.atualizado_em||b.criado_em) - new Date(a.atualizado_em||a.criado_em); });
+    list.innerHTML = sorted.map(function(t){
+      var statusClass = 'status-' + (t.status||'').toLowerCase().replace('í','i').replace('ç','c');
+      var dt = t.criado_em ? new Date(t.criado_em).toLocaleDateString('pt-BR') : '';
+      var notesHtml = t.notas ? '<div class="task-notes">'+t.notas+'</div>' : '';
+      return '<div class="task-card '+statusClass+'">'+
+        '<div class="task-top">'+
+          '<div>'+
+            '<p class="task-title">'+t.titulo+'</p>'+
+            '<div class="task-meta">'+
+              '<span class="task-badge">'+t.tipo+'</span>'+
+              '<span class="task-badge">'+t.filial+'</span>'+
+              '<span>'+t.responsavel+'</span>'+
+              '<span>- criado em '+dt+'</span>'+
+            '</div>'+
+          '</div>'+
+          '<div class="task-actions">'+
+            '<select onchange="updateTaskStatus(\''+t.id+'\', this.value)">'+
+              '<option '+(t.status==='Ativo'?'selected':'')+'>Ativo</option>'+
+              '<option '+(t.status==='Pausado'?'selected':'')+'>Pausado</option>'+
+              '<option '+(t.status==='Concluído'?'selected':'')+'>Concluído</option>'+
+            '</select>'+
+          '</div>'+
+        '</div>'+
+        notesHtml+
+      '</div>';
+    }).join('');
+  }
+
+  function createTask(){
+    var titulo = document.getElementById('tTitulo').value.trim();
+    if(!titulo){ alert('Dê um título para a atividade.'); return; }
+    var payload = {
+      type:'task', action:'create',
+      titulo: titulo, tipo: document.getElementById('tTipo').value,
+      filial: document.getElementById('tFilial').value,
+      responsavel: document.getElementById('tResp').value,
+      status: 'Ativo',
+      notas: document.getElementById('tNotas').value.trim()
+    };
+    fetch(SHEET_API_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(payload) })
+      .then(function(){
+        document.getElementById('tTitulo').value=''; document.getElementById('tNotas').value='';
+        loadTasks();
+      }).catch(function(){ alert('Não foi possível salvar a atividade agora.'); });
+  }
+
+  function updateTaskStatus(id, status){
+    fetch(SHEET_API_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({type:'task', action:'update', id:id, status:status}) })
+      .then(function(){ loadTasks(); })
+      .catch(function(){ alert('Não foi possível atualizar o status agora.'); });
+  }
+
+  function updateLiveSummary(){
+    var box = document.getElementById('liveSummary');
+    var ativos = allTasks.filter(function(t){ return t.status==='Ativo'; }).length;
+    var brPeMx = allTasks.filter(function(t){ return t.status==='Ativo' && ['Brasil','Peru','México'].indexOf(t.filial)>=0; }).length;
+    box.innerHTML = '<b>'+ativos+'</b> atividades ativas · <b>'+brPeMx+'</b> em BR/Peru/México';
+  }
+
+  loadTasks();
+
+  var dropZone = document.getElementById('dropZone');
+  var fileInput = document.getElementById('fileInput');
+  var currentLogData = null;
+  var SENSITIVE_KEYWORDS = ['tax id','taxid','rfc','ruc','cnpj','cpf','cuit','nit','rut',
+    'nome do agente','razao social','razão social','conta bancaria','conta bancária','banco','iban','swift','clabe'];
+
+  dropZone.addEventListener('click', function(){ fileInput.click(); });
+  dropZone.addEventListener('dragover', function(e){ e.preventDefault(); dropZone.classList.add('drag'); });
+  dropZone.addEventListener('dragleave', function(){ dropZone.classList.remove('drag'); });
+  dropZone.addEventListener('drop', function(e){
+    e.preventDefault(); dropZone.classList.remove('drag');
+    if(e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener('change', function(e){
+    if(e.target.files.length) handleFile(e.target.files[0]);
+  });
+
+  function detectDelimiter(sample){
+    var candidates = [',',';','\t'];
+    var best = ',', bestCount = 0;
+    var firstLine = sample.split(/\r?\n/)[0];
+    candidates.forEach(function(d){
+      var count = firstLine.split(d).length;
+      if(count > bestCount){ bestCount = count; best = d; }
+    });
+    return best;
+  }
+  function tokenizeCSV(text, delim){
+    var rows = [];
+    var row = [], field = '', inQuotes = false;
+    for(var i=0;i<text.length;i++){
+      var ch = text[i], next = text[i+1];
+      if(inQuotes){
+        if(ch === '"' && next === '"'){ field+='"'; i++; }
+        else if(ch === '"'){ inQuotes = false; }
+        else{ field += ch; }
+      } else {
+        if(ch === '"'){ inQuotes = true; }
+        else if(ch === delim){ row.push(field); field=''; }
+        else if(ch === '\r'){ }
+        else if(ch === '\n'){ row.push(field); field=''; rows.push(row); row=[]; }
+        else{ field += ch; }
+      }
+    }
+    if(field.length || row.length){ row.push(field); rows.push(row); }
+    return rows.filter(function(r){ return r.some(function(c){ return c.trim().length; }); });
+  }
+  function parseCSV(text){
+    var delim = detectDelimiter(text);
+    var raw = tokenizeCSV(text, delim);
+    if(!raw.length) return {headers:[], rows:[], delim:delim};
+    var headersRaw = raw[0].map(function(h){ return h.trim().toLowerCase(); });
+    var validIdx = headersRaw.map(function(h,i){ return h.length ? i : -1; }).filter(function(i){ return i>=0; });
+    var headers = validIdx.map(function(i){ return headersRaw[i]; });
+    var rows = raw.slice(1).map(function(cells){
+      var obj = {};
+      validIdx.forEach(function(origI,k){ obj[headers[k]] = (cells[origI]||'').trim(); });
+      return obj;
+    });
+    return {headers:headers, rows:rows, delim:delim};
+  }
+  function findCol(headers, candidates){
+    for(var i=0;i<candidates.length;i++){
+      var c = candidates[i];
+      var found = headers.find(function(h){ return h.includes(c); });
+      if(found) return found;
+    }
+    return null;
+  }
+
+  var _parsedCols = null, _parsedRows = null;
+
+  function handleFile(file){
+    var reader = new FileReader();
+    reader.onload = function(e){
+      try{
+        var parsed = parseCSV(e.target.result);
+        var headers = parsed.headers, rows = parsed.rows;
+        var userCol = findCol(headers, ['usuario','user','operador','preferred full name']);
+        var nameCol = findCol(headers, ['preferred full name','nome']);
+        var emailCol = findCol(headers, ['email']);
+        var recordCol = findCol(headers, ['org.name','cadastro','registro','record']);
+        var codeCol = findCol(headers, ['org.code','codigo','code']);
+        var fieldCol = findCol(headers, ['campo alterado','campo','field']);
+        var branchCol = findCol(headers, ['home branch','filial','branch']);
+        var countryCol = findCol(headers, ['country/region','country','pais','país']);
+        var dateCol = findCol(headers, ['added','data','date']);
+
+        _parsedCols = {userCol:userCol,nameCol:nameCol,emailCol:emailCol,recordCol:recordCol,codeCol:codeCol,fieldCol:fieldCol,branchCol:branchCol,countryCol:countryCol,dateCol:dateCol};
+        _parsedRows = rows;
+
+        var filterCol = branchCol || countryCol;
+        var filterSel = document.getElementById('branchFilter');
+        if(filterCol){
+          var values = Array.from(new Set(rows.map(function(r){ return (r[filterCol]||'(sem filial)').trim(); }))).sort();
+          filterSel.innerHTML = '<option value="">Todas</option>' + values.map(function(v){ return '<option value="'+v.replace(/"/g,'&quot;')+'">'+v+'</option>'; }).join('');
+          filterSel.onchange = renderLogStats;
+          document.getElementById('filterRow').style.display = 'flex';
+        }
+        document.getElementById('logResult').style.display = 'block';
+        renderLogStats();
+      }catch(err){
+        alert('Não foi possível ler este arquivo como CSV. Verifique o formato.');
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function renderLogStats(){
+    if(!_parsedRows) return;
+    var userCol=_parsedCols.userCol, nameCol=_parsedCols.nameCol, emailCol=_parsedCols.emailCol,
+        recordCol=_parsedCols.recordCol, codeCol=_parsedCols.codeCol, fieldCol=_parsedCols.fieldCol,
+        branchCol=_parsedCols.branchCol, countryCol=_parsedCols.countryCol, dateCol=_parsedCols.dateCol;
+    var filterCol = branchCol || countryCol;
+    var filterVal = document.getElementById('branchFilter').value;
+    var rows = filterVal ? _parsedRows.filter(function(r){ return (r[filterCol]||'(sem filial)').trim() === filterVal; }) : _parsedRows;
+
+    var total = rows.length;
+    var userCounts = {}, userInfo = {}, recordCodes = {}, recordRows = {}, sensitiveCounts = {}, branchCounts = {};
+    var automationCount = 0;
+    var AUTOMATION_LABELS = ['automação cross>cw','automacao cross>cw','automação','automation'];
+
+    rows.forEach(function(r){
+      var uCode = userCol ? (r[userCol] || '(sem código)') : 'desconhecido';
+      userCounts[uCode] = (userCounts[uCode]||0)+1;
+      if(!userInfo[uCode]) userInfo[uCode] = { name: nameCol?(r[nameCol]||''):'', email: emailCol?(r[emailCol]||''):'', branch: branchCol?(r[branchCol]||''):'' };
+
+      var recRaw = recordCol ? r[recordCol] : 'desconhecido';
+      var rec = recRaw ? recRaw.trim().toUpperCase() : 'desconhecido';
+      var code = codeCol ? (r[codeCol]||'').trim().toUpperCase() : '';
+      if(rec && rec !== '#N/D'){
+        if(!recordCodes[rec]) recordCodes[rec] = new Set();
+        if(code) recordCodes[rec].add(code);
+        if(!recordRows[rec]) recordRows[rec] = [];
+        recordRows[rec].push({ user: uCode, userName: userInfo[uCode].name, code: code, date: dateCol?(r[dateCol]||''):'', branch: branchCol?(r[branchCol]||''):'' });
+      }
+      var bVal = (branchCol ? r[branchCol] : '') || '(sem filial)';
+      branchCounts[bVal] = (branchCounts[bVal]||0)+1;
+      if(AUTOMATION_LABELS.some(function(lbl){ return bVal.toLowerCase().includes(lbl); })) automationCount++;
+
+      if(fieldCol){
+        var fv = (r[fieldCol]||'').toLowerCase();
+        var match = SENSITIVE_KEYWORDS.find(function(k){ return fv.includes(k); });
+        if(match) sensitiveCounts[r[fieldCol]] = (sensitiveCounts[r[fieldCol]]||0)+1;
+      }
+    });
+
+    var dupRecords = Object.entries(recordCodes).filter(function(e){ return e[1].size > 1; });
+    var reincid = dupRecords.length;
+    var sortedUsers = Object.entries(userCounts).sort(function(a,b){ return b[1]-a[1]; }).slice(0,5);
+    var sortedDup = dupRecords.sort(function(a,b){ return b[1].size - a[1].size; }).slice(0,10);
+    var sortedSensitive = Object.entries(sensitiveCounts).sort(function(a,b){ return b[1]-a[1]; });
+    var sortedBranch = Object.entries(branchCounts).sort(function(a,b){ return b[1]-a[1]; });
+    var automationPct = total ? ((automationCount/total)*100).toFixed(1) : '0';
+
+    document.getElementById('mTotal').textContent = total;
+    document.getElementById('mUsers').textContent = Object.keys(userCounts).length;
+    document.getElementById('mReincid').textContent = reincid;
+    document.getElementById('mAuto').textContent = automationPct + '%';
+
+    document.getElementById('sensitiveFields').innerHTML = fieldCol
+      ? (sortedSensitive.length ? sortedSensitive.map(function(e){ return '<span class="sensitive-tag">'+e[0]+' · '+e[1]+'×</span>'; }).join('') : '<p style="font-size:12px;color:var(--ink-dim);">Nenhum campo sensível identificado no período.</p>')
+      : '<p style="font-size:12px;color:var(--ink-dim);">Este relatório não tem coluna de campo alterado + valor anterior/novo (é um relatório de criação, não de edição). Para ver isso, é preciso um relatório de auditoria de edição de campo do CargoWise.</p>';
+
+    document.getElementById('topUsers').innerHTML = sortedUsers.length
+      ? sortedUsers.map(function(e){
+          var u=e[0], c=e[1];
+          var info = userInfo[u] || {};
+          var label = info.name ? info.name+' <span style="color:var(--ink-dim);">('+u+')</span>' : u;
+          var sub = [info.email, info.branch].filter(Boolean).join(' · ');
+          return '<div class="sla-row" style="display:block;padding:10px 0;"><div style="display:flex;justify-content:space-between;"><span>'+label+'</span><span class="val">'+c+'</span></div>'+(sub?'<div style="font-size:11px;color:var(--ink-dim);margin-top:2px;">'+sub+'</div>':'')+'</div>';
+        }).join('')
+      : '<p style="font-size:12px;color:var(--ink-dim);">Coluna de usuário não identificada.</p>';
+
+    window._recordRows = recordRows;
+    document.getElementById('topRecords').innerHTML = sortedDup.length
+      ? sortedDup.map(function(e){
+          var r=e[0], codesSet=e[1];
+          var codes = Array.from(codesSet).join(', ');
+          return '<div class="sla-row rec-click" data-rec="'+r.replace(/"/g,'&quot;')+'" style="cursor:pointer;display:block;padding:10px 0;" onclick="toggleRecordDetail(this)">'+
+            '<div style="display:flex;justify-content:space-between;"><span>'+r+' <span class="sensitive-tag" style="margin-left:6px;">possível duplicidade</span></span><span class="val">'+codesSet.size+' códigos &#9662;</span></div>'+
+            '<div style="font-family:var(--mono);font-size:11px;color:var(--ink-dim);margin-top:3px;">CW: '+codes+'</div>'+
+          '</div><div class="rec-detail" style="display:none;padding:8px 0 8px 14px;border-bottom:1px solid var(--line);"></div>';
+        }).join('')
+      : '<p style="font-size:12px;color:var(--ink-dim);">Nenhum nome de cadastro com mais de um Org.Code distinto neste recorte.</p>';
+
+    document.getElementById('branchBreakdown').innerHTML = sortedBranch.slice(0,8).length
+      ? sortedBranch.slice(0,8).map(function(e){ return '<div class="sla-row"><span>'+e[0]+'</span><span class="val">'+e[1]+'</span></div>'; }).join('')
+      : '<p style="font-size:12px;color:var(--ink-dim);">Coluna de filial não identificada.</p>';
+
+    currentLogData = { total:total, users: Object.keys(userCounts).length, reincid:reincid, adhocCount: 0,
+      sensitiveTotal: sortedSensitive.reduce(function(s,e){ return s+e[1]; },0), fileName: (fileInput.files[0]||{}).name || 'relatorio.csv', date: new Date().toISOString(),
+      breakdown: {
+        branches: sortedBranch.slice(0,8),
+        duplicates: sortedDup.slice(0,8).map(function(e){ return [e[0], Array.from(e[1])]; }),
+        users: sortedUsers.map(function(e){ var code=e[0],c=e[1]; return [code, c, (userInfo[code]||{}).name||'', (userInfo[code]||{}).branch||'']; })
+      } };
+  }
+
+  function toggleRecordDetail(el){
+    var detail = el.nextElementSibling;
+    var isOpen = detail.style.display !== 'none';
+    document.querySelectorAll('.rec-detail').forEach(function(d){ d.style.display = 'none'; });
+    if(isOpen) return;
+    var rec = el.dataset.rec;
+    var occurrences = (window._recordRows && window._recordRows[rec]) || [];
+    detail.innerHTML = occurrences.map(function(o){
+      return '<div style="font-size:11.5px;color:var(--ink-dim);padding:3px 0;">'+(o.date?o.date+' · ':'')+'<span style="font-family:var(--mono);color:var(--brass);">'+(o.code||'-')+'</span> · '+(o.userName || o.user)+(o.branch?' · '+o.branch:'')+'</div>';
+    }).join('') || '<div style="font-size:11.5px;color:var(--ink-dim);">Sem detalhe disponível.</div>';
+    detail.style.display = 'block';
+  }
+
+  function saveSnapshot(){
+    if(!currentLogData) return;
+    if(!sheetsConfigured()){ alert('Conexão com a planilha não configurada.'); return; }
+    fetch(SHEET_API_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(currentLogData) })
+      .then(function(){ alert('Snapshot salvo na planilha compartilhada.'); loadSnapshots(); })
+      .catch(function(){ alert('Não foi possível salvar o snapshot agora.'); });
+  }
+
+  var loadedSnapshots = [];
+
+  function loadSnapshots(){
+    var list = document.getElementById('snapshotList');
+    var btn = document.getElementById('compareBtn');
+    if(!sheetsConfigured()){ list.innerHTML = '<p style="font-size:12px;color:var(--ink-dim);">Conexão com a planilha não configurada.</p>'; return; }
+    fetch(SHEET_API_URL).then(function(res){ return res.json(); }).then(function(items){
+      loadedSnapshots = items.map(function(d,i){
+        var breakdown = null;
+        if(d.raw){ try{ breakdown = JSON.parse(d.raw).breakdown; }catch(e){} }
+        return { key:'row'+i, fileName:d.fileName, date:d.date, total:Number(d.total)||0, users:Number(d.users)||0, reincid:Number(d.reincid)||0, breakdown:breakdown };
+      }).sort(function(a,b){ return new Date(b.date)-new Date(a.date); });
+      if(!loadedSnapshots.length){
+        list.innerHTML = '<p style="font-size:12px;color:var(--ink-dim);">Nenhum snapshot salvo ainda.</p>';
+        btn.style.display='none'; return;
+      }
+      list.innerHTML = loadedSnapshots.map(function(d){
+        var dt = new Date(d.date);
+        return '<div class="snapshot-item">'+
+          '<div style="display:flex;justify-content:space-between;align-items:center;">'+
+            '<label style="display:flex;align-items:center;flex:1;">'+
+              '<input type="checkbox" class="snap-check" value="'+d.key+'" style="margin-right:8px;">'+
+              '<span style="font-family:var(--mono);">'+d.fileName+'</span>&nbsp;'+
+              '<span style="color:var(--ink-dim);">· '+dt.toLocaleDateString('pt-BR')+' · '+d.total+' cadastros · '+d.reincid+' nomes c/ código duplicado</span>'+
+            '</label>'+
+            '<button onclick="deleteSnapshot(\''+d.date+'\')" style="background:none;border:1px solid var(--bad);color:var(--bad);border-radius:5px;padding:4px 10px;font-size:11px;cursor:pointer;">excluir</button>'+
+          '</div>'+
+        '</div>';
+      }).join('');
+      btn.style.display = loadedSnapshots.length>=2 ? 'inline-block' : 'none';
+    }).catch(function(){
+      list.innerHTML = '<p style="font-size:12px;color:var(--ink-dim);">Não foi possível carregar o histórico agora.</p>';
+    });
+  }
+
+  function compareSnapshots(){
+    var checked = Array.from(document.querySelectorAll('.snap-check:checked')).map(function(c){ return c.value; });
+    var result = document.getElementById('compareResult');
+    if(checked.length !== 2){ result.innerHTML = '<div class="note">Selecione exatamente 2 snapshots para comparar.</div>'; return; }
+    var pair = checked.map(function(k){ return loadedSnapshots.find(function(s){ return s.key===k; }); }).sort(function(x,y){ return new Date(x.date)-new Date(y.date); });
+    var a = pair[0], b = pair[1];
+    function pct(curr,prev){ return prev===0 ? (curr===0?'0%':'+100%') : (((curr-prev)/prev)*100).toFixed(0)+'%'; }
+    result.innerHTML = '<div class="compare-result">'+
+      '<h4 style="margin:0 0 10px;font-size:12px;text-transform:uppercase;color:var(--ink-dim);">'+new Date(a.date).toLocaleDateString('pt-BR')+' -> '+new Date(b.date).toLocaleDateString('pt-BR')+'</h4>'+
+      '<div class="sla-row"><span>Cadastros totais</span><span class="val">'+a.total+' -> '+b.total+' ('+pct(b.total,a.total)+')</span></div>'+
+      '<div class="sla-row"><span>Nomes com código duplicado</span><span class="val">'+a.reincid+' -> '+b.reincid+' ('+pct(b.reincid,a.reincid)+')</span></div>'+
+    '</div>';
+  }
+
+  loadSnapshots();
+
+  function deleteSnapshot(dateKey){
+    var pin = prompt('Digite o PIN para confirmar a exclusão deste snapshot:');
+    if(!pin) return;
+    fetch(SHEET_API_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({type:'snapshot_delete', date:dateKey, pin:pin}) })
+      .then(function(res){ return res.json(); })
+      .then(function(result){
+        if(result.status === 'ok'){ loadSnapshots(); }
+        else{ alert(result.message || 'Não foi possível excluir. PIN incorreto?'); }
+      })
+      .catch(function(){ alert('Não foi possível excluir agora. Tente novamente.'); });
+  }
+</script>
+
+</body>
+</html>
