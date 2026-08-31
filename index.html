@@ -446,10 +446,10 @@
       <table>
         <thead><tr><th>Processo</th><th>Responsável</th><th>Aprovador</th><th>Consultado</th><th>Informado</th></tr></thead>
         <tbody>
-          <tr><td class="proc">POP-0011 - Fornecedor (BR)</td><td>Multiplicador CoreCad</td><td>Gerente Financeiro</td><td>Pricing</td><td>-</td></tr>
-          <tr><td class="proc">POP-0020 - Cliente (BR)</td><td>Multiplicador CoreCad</td><td>Financeiro</td><td>Comercial</td><td>Comercial</td></tr>
-          <tr><td class="proc">POP-0021 - Agente (Global)</td><td>Multiplicador CoreCad</td><td>Procurement</td><td>Financeiro</td><td>Comercial</td></tr>
-          <tr><td class="proc">POP-0022 - Shipper/Cnee (BR)</td><td>Multiplicador CoreCad</td><td>Financeiro</td><td>Solicitante</td><td>Solicitante</td></tr>
+          <tr><td class="proc">POP-0011 - Fornecedor (BR)</td><td>CoreCad</td><td>Gerente Financeiro</td><td>Pricing</td><td>-</td></tr>
+          <tr><td class="proc">POP-0020 - Cliente (BR)</td><td>CoreCad</td><td>Financeiro</td><td>Comercial</td><td>Comercial</td></tr>
+          <tr><td class="proc">POP-0021 - Agente (Global)</td><td>CoreCad</td><td>Procurement</td><td>Financeiro</td><td>Comercial</td></tr>
+          <tr><td class="proc">POP-0022 - Shipper/Cnee (BR)</td><td>CoreCad</td><td>Financeiro</td><td>Solicitante</td><td>Solicitante</td></tr>
           <tr><td class="proc">POP-0044 - Proveedor (PE)</td><td>Multiplicador CoreCad</td><td>Gerente Financiero</td><td>Pricing</td><td>-</td></tr>
           <tr><td class="proc">POP-0045 - Shipper/Cnee (PE)</td><td>Multiplicador CoreCad</td><td>Financiero</td><td>Solicitante</td><td>Solicitante</td></tr>
           <tr><td class="proc">POP-0046 - Cliente (PE)</td><td>Multiplicador CoreCad</td><td>Financiero/G.Comercial</td><td>Financiero/G.Comercial</td><td>Comercial</td></tr>
@@ -2097,7 +2097,7 @@
       return {
         'Org.Code': e.code, 'Org.Name': e.name, 'País da Empresa': COUNTRY_LABELS[e.country]||e.country,
         'Usuário CW': e.user, 'Nome': e.userName, 'E-mail': e.userEmail, 'Setor': e.dept,
-        'Setor esperado': e.expectedDept, 'Dentro do padrão?': e.outOfPattern?'Não':'Sim',
+        'Setor esperado': e.expectedDept, 'Dentro do padrão?': e.outOfPattern?'Sim':'Não',
         'Status': e.isTemp?'Temporário':'Fora de Temporário', 'Dias em temporário': e.agingDays!==null?e.agingDays:'',
         'Data do cadastro': e.date
       };
