@@ -3843,6 +3843,11 @@
           if(pending <= 0 && proc) proc.style.display = 'none';
         }
       };
+      reader.onerror = function(){
+        pending--;
+        alert('Não foi possível ler "'+file.name+'" — o arquivo pode estar corrompido ou grande demais para o navegador.');
+        if(pending <= 0 && proc) proc.style.display = 'none';
+      };
       reader.readAsArrayBuffer(file);
     });
   }
