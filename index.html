@@ -4403,11 +4403,11 @@
     }
     var entries = [];
     _parsedRows.forEach(function(r){
+      var officeCountry = (r[c.countryCol]||'').trim().toUpperCase();
       var unlocoVal = c.unlocoCol ? (r[c.unlocoCol]||'').trim().toUpperCase() : '';
-      var isBrazilianCompany = c.unlocoCol
-        ? (unlocoVal.indexOf('BR') === 0)
-        : ((r[c.countryCol]||'').trim().toUpperCase() === 'BR');
-      if(!isBrazilianCompany) return;
+      var isBrazilianCompany = c.unlocoCol ? (unlocoVal.indexOf('BR') === 0) : (officeCountry === 'BR');
+      var isBrazilOffice = officeCountry === 'BR';
+      if(!(isBrazilianCompany && isBrazilOffice)) return;
       var dept = (r[c.deptCol]||'').trim().toUpperCase();
       var branchVal = c.branchCol ? (r[c.branchCol]||'') : '';
       var userVal = c.userCol ? (r[c.userCol]||'') : '';
