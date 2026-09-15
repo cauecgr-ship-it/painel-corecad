@@ -3595,6 +3595,29 @@
   var _rawFileBytes = null;
 
   var LS_REPORT_KEY = 'corecad_last_report_v1';
+    var IDB_NAME = 'corecad_db', IDB_STORE = 'reports';
+  function idbOpen(cb){
+    var req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = function(e){ e.target.result.createObjectStore(IDB_STORE); };
+    req.onsuccess = function(e){ cb(e.target.result); };
+    req.onerror = function(){ cb(null); };
+  }
+  function idbSaveReport(fileName, text){
+    idbOpen(function(db){
+      if(!db) return;
+      var tx = db.transaction(IDB_STORE,'readwrite');
+      tx.objectStore(IDB_STORE).put({fileName:fileName, savedAt:new Date().toISOString(), text:text}, 'lastReport');
+    });
+  }
+  function idbLoadReport(cb){
+    idbOpen(function(db){
+      if(!db) return cb(null);
+      var tx = db.transaction(IDB_STORE,'readonly');
+      var req = tx.objectStore(IDB_STORE).get('lastReport');
+      req.onsuccess = function(){ cb(req.result||null); };
+      req.onerror = function(){ cb(null); };
+    });
+  }
   var LS_ENRICH_KEY = 'corecad_enrich_data_v1';
   var _enrichData = {}; // keyed por Org.Code
 
@@ -3776,11 +3799,8 @@
       }
       processDecodedText(text, _lastFileName);
       // salva no navegador para não "sumir" ao reabrir o painel (localStorage — só neste computador/navegador)
-      try{
-        localStorage.setItem(LS_REPORT_KEY, JSON.stringify({ fileName: _lastFileName, savedAt: new Date().toISOString(), text: text }));
-      }catch(quotaErr){
-        console.warn('Não foi possível salvar o relatório localmente (arquivo muito grande para o localStorage do navegador).');
-      }
+      idbSaveReport(_lastFileName, text);
+      try{ localStorage.removeItem(LS_REPORT_KEY); }catch(e){}
     }catch(err){
       alert('Não foi possível ler este arquivo como CSV. Verifique o formato.');
     } finally {
@@ -3828,30 +3848,37 @@
       renderGestao();
   }
 
-  function tryRestoreLastReport(){
-    var raw = null;
-    try{ raw = localStorage.getItem(LS_REPORT_KEY); }catch(e){}
-    if(!raw) return;
-    try{
-      var saved = JSON.parse(raw);
-      processDecodedText(saved.text, saved.fileName);
-      var dt = new Date(saved.savedAt);
-      var banner = document.createElement('div');
-      banner.className = 'note';
-      banner.style.marginTop = '0';
-      banner.innerHTML = '📁 Relatório restaurado automaticamente: <b>'+saved.fileName+'</b> (processado em '+dt.toLocaleString('pt-BR')+'). '+
-        '<button onclick="this.parentElement.remove()" style="background:none;border:1px solid var(--line);color:var(--ink-dim);border-radius:5px;padding:3px 9px;font-size:11px;cursor:pointer;margin-left:8px;">Ok, entendi</button> '+
-        '<button onclick="clearRestoredReport()" style="background:none;border:1px solid var(--bad);color:var(--bad);border-radius:5px;padding:3px 9px;font-size:11px;cursor:pointer;">Limpar e começar do zero</button>';
-      var anchor = document.getElementById('desvLog');
-      if(anchor && anchor.parentElement) anchor.parentElement.insertBefore(banner, anchor.nextSibling);
-    }catch(e){
-      console.warn('Não foi possível restaurar o último relatório salvo.');
-    }
+    function tryRestoreLastReport(){
+    idbLoadReport(function(saved){
+      if(!saved){
+        var raw = null;
+        try{ raw = localStorage.getItem(LS_REPORT_KEY); }catch(e){}
+        if(!raw) return;
+        try{ saved = JSON.parse(raw); }catch(e){ return; }
+      }
+      try{
+        processDecodedText(saved.text, saved.fileName);
+        var dt = new Date(saved.savedAt);
+        var banner = document.createElement('div');
+        banner.className = 'note';
+        banner.style.marginTop = '0';
+        banner.innerHTML = '📁 Relatório restaurado automaticamente: <b>'+saved.fileName+'</b> (processado em '+dt.toLocaleString('pt-BR')+'). '+
+          '<button onclick="this.parentElement.remove()" style="background:none;border:1px solid var(--line);color:var(--ink-dim);border-radius:5px;padding:3px 9px;font-size:11px;cursor:pointer;margin-left:8px;">Ok, entendi</button> '+
+          '<button onclick="clearRestoredReport()" style="background:none;border:1px solid var(--bad);color:var(--bad);border-radius:5px;padding:3px 9px;font-size:11px;cursor:pointer;">Limpar e começar do zero</button>';
+        var anchor = document.getElementById('desvLog');
+        if(anchor && anchor.parentElement) anchor.parentElement.insertBefore(banner, anchor.nextSibling);
+      }catch(e){
+        console.warn('Não foi possível restaurar o último relatório salvo.');
+      }
+    });
   }
 
-  function clearRestoredReport(){
+    function clearRestoredReport(){
     try{ localStorage.removeItem(LS_REPORT_KEY); }catch(e){}
-    location.reload();
+    idbOpen(function(db){
+      if(db){ db.transaction(IDB_STORE,'readwrite').objectStore(IDB_STORE).delete('lastReport'); }
+      location.reload();
+    });
   }
 
   function renderLogStats(){
@@ -4376,8 +4403,11 @@
     }
     var entries = [];
     _parsedRows.forEach(function(r){
-      var country = (r[c.countryCol]||'').trim().toUpperCase();
-      if(country !== 'BR') return;
+      var unlocoVal = c.unlocoCol ? (r[c.unlocoCol]||'').trim().toUpperCase() : '';
+      var isBrazilianCompany = c.unlocoCol
+        ? (unlocoVal.indexOf('BR') === 0)
+        : ((r[c.countryCol]||'').trim().toUpperCase() === 'BR');
+      if(!isBrazilianCompany) return;
       var dept = (r[c.deptCol]||'').trim().toUpperCase();
       var branchVal = c.branchCol ? (r[c.branchCol]||'') : '';
       var userVal = c.userCol ? (r[c.userCol]||'') : '';
