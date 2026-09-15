@@ -3973,11 +3973,12 @@
       var code = c.codeCol ? (r[c.codeCol]||'').trim().toUpperCase() : null;
       if(!code) return;
       var country = c.countryCol ? (r[c.countryCol]||'').trim().toUpperCase() : '';
-      if(_sanCountryFilter !== 'Todas' && country !== _sanCountryFilter) return;
+      var unlocoOrigin = c.unlocoCol ? (r[c.unlocoCol]||'').trim().toUpperCase().slice(0,2) : country;
+      if(_sanCountryFilter !== 'Todas' && unlocoOrigin !== _sanCountryFilter) return;
       // aplica o corte de data de início de vigência do CoreCad no país (se soubermos a data e a coluna de data existir)
-      if(_sanCountryFilter !== 'Todas' && COUNTRY_START[country] && c.dateCol){
+      if(_sanCountryFilter !== 'Todas' && COUNTRY_START[unlocoOrigin] && c.dateCol){
         var dt = parseAddedDateG(r[c.dateCol]);
-        if(dt && dt < COUNTRY_START[country]) return;
+        if(dt && dt < COUNTRY_START[unlocoOrigin]) return;
       }
       if(!orgMap[code]){
         orgMap[code] = {
@@ -4990,15 +4991,16 @@
 
     // Mapa de calor por filial + Top 5 ofensoras + Matriz de risco
     if(c.branchCol){
+      function normBranchName(b){ return normalizeStrG((b||'(sem filial)').trim()).toUpperCase(); }
       var branchTotal = {}, branchDev = {};
       _gestBRRows.forEach(function(r){
-        var b = (r[c.branchCol]||'(sem filial)').trim();
+        var b = normBranchName(c.branchCol ? r[c.branchCol] : '');
         var u = c.userCol ? (r[c.userCol]||'') : '';
         if(isAutomationUser(u)) return;
         branchTotal[b] = (branchTotal[b]||0)+1;
       });
       _devEntries.forEach(function(e){
-        var b = e.branch || '(sem filial)';
+        var b = normBranchName(e.branch);
         branchDev[b] = (branchDev[b]||0)+1;
       });
       var totalDevAll = _devEntries.length || 1;
