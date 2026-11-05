@@ -6566,118 +6566,41 @@
       });
   }
 
-  // ===== REABRIR EXCEÇÕES (V6.12) =====
-  // Reabrir devolve o cadastro ao bloco. Para um lote concluído a unidade certa é o lote inteiro: reabrir só um
-  // cadastro de um bloco de 2 deixa o bloco abaixo do tamanho mínimo e ele não volta para Pendentes.
-  var MOTIVO_CONCLUSAO_RE = /^Atividade marcada como Conclu/i;
-  function nomeDoCodigoReabrir(code, notas){
-    if(notas){
-      var m = notas.match(new RegExp('(?:^|[^A-Z0-9])' + code.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ' \\((.*?)\\)(?:; |$)', 'm'));
-      if(m && m[1]) return m[1];
-    }
-    var e = _enrichData && _enrichData[code];
-    return (e && (e.orgName || e.fullName)) || '';
-  }
-  // exceções ativas de conclusão ligadas a um lote (nunca pega retirada manual do mesmo cadastro e motivo)
-  function excecoesDeConclusaoDoLote(t){
-    var vistos = {}, itens = [];
-    linkedExceptionsOfTask(t).keys.forEach(function(k){
-      var ix = k.lastIndexOf('::');
-      var r = resolutionFor(k.slice(0, ix), k.slice(ix + 2));
-      if(!r || r.status !== 'ativo' || !MOTIVO_CONCLUSAO_RE.test(String(r.motivoAceite || '')) || vistos[r.chave]) return;
-      vistos[r.chave] = true;
-      var code = String(r.orgCodes || k.slice(0, ix)).split(',')[0].trim();
-      itens.push({ chave: r.chave, code: code, motivo: r.motivo || k.slice(ix + 2), nome: nomeDoCodigoReabrir(code, t.notas) });
-    });
-    return itens;
-  }
-  function reabrirLoteSan(taskId){
-    var t = (allTasks || []).find(function(x){ return String(x.id) === String(taskId); });
-    if(!t){ alertar('Atividade não encontrada.'); return; }
-    var itens = excecoesDeConclusaoDoLote(t);
-    if(!itens.length){ alertar('Este lote não tem exceções de conclusão ativas para reabrir.'); return; }
-    abrirJanelaReabrir('Reabrir as exceções de ' + rotuloDoLote(t), 'Os ' + itens.length + ' cadastro(s) abaixo voltam a valer como pendentes nos blocos do lote. A atividade em si não muda de status.', itens, true);
-  }
-  function reabrirExcecaoSan(chave){
-    var r = _resolvedFindings[chave];
-    if(!r || r.status !== 'ativo'){ alertar('Esta exceção não está mais ativa.'); return; }
-    var code = String(r.orgCodes || chave.split('::')[0]).split(',')[0].trim();
-    abrirJanelaReabrir('Reabrir exceção de ' + code, 'O cadastro volta ao bloco "' + semTravessao(r.motivo || '') + '".', [{ chave: chave, code: code, motivo: r.motivo || '', nome: nomeDoCodigoReabrir(code, '') }], false);
-  }
-  function abrirJanelaReabrir(titulo, texto, itens, perigo){
-    var pendentes = itens.slice();
-    var MAXV = 12;
-    var lista = itens.slice(0, MAXV).map(function(i){
-      return '<div style="font-size:12px;padding:2px 0;"><span style="font-family:var(--mono);font-weight:600;">'+escModal(i.code)+'</span>'+(i.nome ? ' · '+escModal(i.nome) : '')+
-        ' <span style="color:var(--ink-dim);">('+escModal(semTravessao(i.motivo))+')</span></div>';
-    }).join('') + (itens.length > MAXV ? '<div style="font-size:11px;color:var(--ink-dim);">+ '+(itens.length-MAXV)+' outro(s)</div>' : '');
-    showModal(
-      '<h4 style="margin:0 0 8px;">'+escModal(titulo)+'</h4>'+
-      '<p style="font-size:12px;line-height:1.5;margin:0 0 8px;color:var(--ink-dim);">'+escModal(texto)+'</p>'+
-      '<div id="reabrirLista" style="max-height:160px;overflow:auto;margin:0 0 10px;border:1px solid var(--line);border-radius:6px;padding:6px 8px;">'+lista+'</div>'+
+  function reopenSanResolve(chave){
+    var html = '<h4 style="margin:0 0 12px;">Reabrir achado</h4>'+
       '<span class="label" style="font-size:11px;color:var(--ink-dim);text-transform:uppercase;">Motivo da reabertura (obrigatório):</span><br>'+
-      '<textarea id="reabrirMotivo" style="width:100%;min-height:50px;background:var(--deep2);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:8px;font-size:12px;margin:6px 0 10px;box-sizing:border-box;"></textarea>'+
-      '<span class="label" style="font-size:11px;color:var(--ink-dim);text-transform:uppercase;">Quem está reabrindo (obrigatório):</span><br>'+
-      '<select id="reabrirQuem" class="plain" style="width:100%;margin:6px 0 12px;"><option value="">Selecione...</option>'+
-        OPERATORS.filter(function(o){ return o !== 'Outro / a definir'; }).map(function(o){ return '<option value="'+escModal(o)+'">'+escModal(o)+'</option>'; }).join('')+'</select>'+
+      '<textarea id="modalReabreMotivo" style="width:100%;min-height:50px;background:var(--deep2);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:8px;font-size:12px;margin:6px 0 12px;"></textarea>'+
+      '<span class="label" style="font-size:11px;color:var(--ink-dim);text-transform:uppercase;">Operador:</span><br>'+
+      '<select id="modalReabreOperador" class="plain" style="width:100%;margin:6px 0 12px;">'+
+        '<option value="">Selecione...</option>'+
+        OPERATORS.filter(function(o){ return o !== 'Outro / a definir'; }).map(function(o){ return '<option value="'+o.replace(/"/g,'&quot;')+'">'+o+'</option>'; }).join('')+
+      '</select>'+
       '<div id="modalStatus" style="font-size:12px;margin-bottom:10px;min-height:16px;"></div>'+
       '<div style="display:flex;gap:8px;">'+
-        '<button id="reabrirBtn" type="button" style="'+(perigo ? 'background:var(--bad);color:#fff;' : 'background:var(--brass);color:var(--deep);')+'border:none;border-radius:5px;padding:8px 16px;font-size:12px;font-weight:600;cursor:pointer;">Reabrir '+(itens.length > 1 ? itens.length+' exceções' : 'exceção')+'</button>'+
-        '<button id="reabrirCancela" type="button" onclick="hideModal()" style="background:none;border:1px solid var(--line);color:var(--ink-dim);border-radius:5px;padding:8px 16px;font-size:12px;cursor:pointer;">Cancelar</button>'+
-      '</div>');
-    var btn = document.getElementById('reabrirBtn'), cancela = document.getElementById('reabrirCancela');
-    function soltar(msg){
-      _modalTravado = false;
-      if(document.getElementById('reabrirBtn') !== btn) return;
-      btn.disabled = false; cancela.disabled = false;
-      btn.textContent = 'Tentar de novo' + (pendentes.length > 1 ? ' ('+pendentes.length+')' : '');
-      setModalStatus(msg, true);
-    }
-    function enviarUma(item, motivo, quem){
-      return new Promise(function(resolve){
-        var ctl = new AbortController();
-        var to = setTimeout(function(){ ctl.abort(); }, EXCLUIR_TIMEOUT_MS);
-        fetch(SHEET_API_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, signal: ctl.signal,
-          body: JSON.stringify({ type:'revisao', action:'reopen', chave:item.chave, motivoReabertura:motivo, responsavelReabertura:quem, reaberto_em:new Date().toISOString() }) })
-          .then(function(res){ return res.json().catch(function(){ return null; }); })
-          .then(function(r){ clearTimeout(to); resolve(!!(r && r.status === 'ok')); })
-          .catch(function(){ clearTimeout(to); resolve(false); });
+        '<button id="modalReabreBtn" onclick="confirmReopenSanResolve(\''+chave.replace(/'/g,"\\'")+'\')" style="background:var(--bad);color:var(--deep);border:none;border-radius:5px;padding:8px 16px;font-size:12px;font-weight:600;cursor:pointer;">Reabrir</button>'+
+        '<button onclick="hideModal()" style="background:none;border:1px solid var(--line);color:var(--ink-dim);border-radius:5px;padding:8px 16px;font-size:12px;cursor:pointer;">Cancelar</button>'+
+      '</div>';
+    showModal(html);
+  }
+
+  function confirmReopenSanResolve(chave){
+    var motivo = (document.getElementById('modalReabreMotivo').value||'').trim();
+    if(!motivo){ setModalStatus('Descreva o motivo. É obrigatório.', true); return; }
+    var operador = document.getElementById('modalReabreOperador').value;
+    if(!operador){ setModalStatus('Selecione o operador.', true); return; }
+    var btn = document.getElementById('modalReabreBtn');
+    btn.disabled = true; btn.textContent = 'Reabrindo...';
+    setModalStatus('Salvando...', false);
+    fetch(SHEET_API_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ type:'revisao', action:'reopen', chave:chave, motivoReabertura:motivo, responsavelReabertura:operador, reaberto_em:new Date().toISOString() }) })
+      .then(function(){
+        setModalStatus('✓ Reaberto com sucesso.', false, true);
+        setTimeout(function(){ hideModal(); loadResolutions(); }, 1000);
+      })
+      .catch(function(){
+        setModalStatus('Falha ao reabrir. Tente novamente.', true);
+        btn.disabled = false; btn.textContent = 'Reabrir';
       });
-    }
-    btn.onclick = function(){
-      if(_modalTravado) return;
-      var motivo = document.getElementById('reabrirMotivo').value.trim();
-      var quem = document.getElementById('reabrirQuem').value;
-      if(!motivo){ setModalStatus('Escreva o motivo da reabertura.', true); return; }
-      if(!quem){ setModalStatus('Selecione quem está reabrindo.', true); return; }
-      _modalTravado = true;
-      btn.disabled = true; cancela.disabled = true; btn.textContent = 'Gravando...';
-      var fila = pendentes.slice(), feitas = 0;
-      (function proximo(){
-        if(fila.length){
-          setModalStatus('Gravando '+(feitas+1)+' de '+pendentes.length+', aguarde...', false);
-          var item = fila.shift();
-          enviarUma(item, motivo, quem).then(function(){ feitas++; proximo(); });
-          return;
-        }
-        setModalStatus('Conferindo na planilha...', false);
-        loadResolutions().then(function(){
-          if(_resolStatus !== 'ok'){ soltar('Não foi possível conferir na planilha. Confira o quadro de Blocos já saneados antes de tentar de novo.'); return; }
-          var faltam = pendentes.filter(function(i){ var r = _resolvedFindings[i.chave]; return !(r && r.status === 'reaberto'); });
-          try{ renderSaneamentoList(); if(typeof refreshDiffView === 'function') refreshDiffView(); }catch(e){}
-          if(faltam.length){
-            pendentes = faltam;
-            var l = document.getElementById('reabrirLista');
-            if(l) l.innerHTML = '<div style="font-size:11px;color:var(--warn);margin-bottom:4px;">Sem confirmação da planilha:</div>'+faltam.slice(0, MAXV).map(function(i){ return '<div style="font-size:12px;"><span style="font-family:var(--mono);">'+escModal(i.code)+'</span></div>'; }).join('');
-            soltar(faltam.length+' de '+itens.length+' não foram confirmadas pela planilha. As demais foram reabertas. Tente de novo só nas que faltam.');
-            return;
-          }
-          _modalTravado = false; hideModal();
-          mostrarAviso(itens.length === 1 ? 'Exceção reaberta' : itens.length+' exceções reabertas');
-        }).catch(function(){ soltar('Não foi possível conferir na planilha. Confira antes de tentar de novo.'); });
-      })();
-    };
-    setTimeout(function(){ var el = document.getElementById('reabrirMotivo'); if(el) el.focus(); }, 0);
   }
 
   var RING_CIRCUMFERENCE = 264;
@@ -6826,12 +6749,6 @@
       var loteHtml = lote
         ? '<span class="task-badge" style="border-color:var(--brass);color:var(--brass);">'+semTravessao(lote.titulo)+' · '+(lote.status||'')+'</span>'
         : '<span class="task-badge" style="border-color:var(--ink-dim);color:var(--ink-dim);">'+(/^Atividade marcada como Conclu/i.test(String(r.motivoAceite||'')) ? 'Lote não localizado' : 'Sem lote (marcação manual)')+'</span>';
-      var ehConclusao = MOTIVO_CONCLUSAO_RE.test(String(r.motivoAceite||''));
-      var estiloReabrir = 'background:none;border:1px solid var(--brass);color:var(--brass);border-radius:5px;padding:2px 8px;font-size:11px;cursor:pointer;margin-left:auto;';
-      var reabrirBtnHtml = ehConclusao
-        ? (lote ? '<button type="button" onclick="reabrirLoteSan(\''+String(lote.id).replace(/'/g,"")+'\')" style="'+estiloReabrir+'" title="Reabre todas as exceções de conclusão deste lote">Reabrir exceções do lote</button>'
-                : '<span style="color:var(--ink-dim);font-size:11px;margin-left:auto;" title="Sem lote para agrupar. A reabertura é só pela planilha.">reabrir: só pela planilha</span>')
-        : '<button type="button" onclick="reabrirExcecaoSan(decodeURIComponent(\''+encodeURIComponent(r.chave||'')+'\'))" style="'+estiloReabrir+'">Reabrir</button>';
       // Fase 1-B: cruza com o Last Edit Time (Raio-X/enriquecimento) — se o cadastro nunca foi
       // editado no CargoWise DEPOIS de ter sido marcado como saneado aqui, é sinal de que o
       // status foi só empurrado no painel, sem correção real no sistema.
@@ -6855,7 +6772,6 @@
           loteHtml+
           semEdicaoRealHtml+
           '<span style="color:var(--ink-dim);">responsável pela marcação: '+(r.responsavel||'sem dado')+'</span>'+
-          reabrirBtnHtml+
         '</div>'+
       '</div>';
     }).join('');
